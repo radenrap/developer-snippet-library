@@ -1,0 +1,19 @@
+{
+  "name": "@snippets/config",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Konfigurasi bersama: tsconfig (base/node/react) dan basis aturan Biome.",
+  "type": "module",
+  "exports": {
+    "./typescript/base.json": "./typescript/base.json",
+    "./typescript/node.json": "./typescript/node.json",
+    "./typescript/react.json": "./typescript/react.json",
+    "./biome.base.json": "./biome.base.json"
+  },
+  "scripts": {
+    "lint": "biome check --config-path=../../biome.json ."
+  },
+  "devDependencies": {
+    "@biomejs/biome": "catalog:"
+  }
+}
