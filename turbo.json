@@ -40,6 +40,16 @@
       "dependsOn": ["^typecheck"],
       "outputs": []
     },
+    "test": {
+      "outputs": []
+    },
+    "test:coverage": {
+      "outputs": ["coverage/**"]
+    },
+    "test:watch": {
+      "cache": false,
+      "persistent": true
+    },
     "db:generate": {
       "cache": false,
       "outputs": ["drizzle/**"]
