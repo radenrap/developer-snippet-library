@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790647194895,
+      "tag": "0000_keen_ogun",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790662000000,
+      "tag": "0001_snippet_library_fts",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790670951024,
+      "tag": "0002_snippet_title_unique",
+      "breakpoints": true
+    }
+  ]
+}

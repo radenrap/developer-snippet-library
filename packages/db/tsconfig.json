@@ -1,0 +1,4 @@
+{
+  "extends": "@snippets/config/typescript/node.json",
+  "include": ["src", "drizzle.config.ts"]
+}
