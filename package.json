@@ -33,5 +33,6 @@
     "@biomejs/biome": "catalog:",
     "turbo": "catalog:",
     "typescript": "catalog:"
-  }
+  },
+  "license": "MIT"
 }
