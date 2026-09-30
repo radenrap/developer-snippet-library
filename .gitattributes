@@ -1,0 +1,13 @@
+# Normalisasi line ending ke LF di dalam repository.
+# Biome dikonfigurasi dengan `lineEnding: lf`, sehingga file ber-CRLF
+# (umum terjadi di checkout Windows) akan dianggap error format.
+* text=auto eol=lf
+
+# File yang harus tetap binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
