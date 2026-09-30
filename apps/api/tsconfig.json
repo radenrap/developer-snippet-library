@@ -1,4 +1,4 @@
 {
   "extends": "@snippets/config/typescript/node.json",
-  "include": ["src", "tsup.config.ts"]
+  "include": ["src", "tests", "tsup.config.ts", "vitest.config.ts"]
 }

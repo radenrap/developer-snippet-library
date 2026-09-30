@@ -10,7 +10,10 @@
     "build": "tsup",
     "start": "node dist/index.js",
     "lint": "biome check --config-path=../../biome.json .",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
     "@fastify/cors": "catalog:",
@@ -29,9 +32,12 @@
     "@biomejs/biome": "catalog:",
     "@snippets/config": "workspace:*",
     "@types/node": "catalog:",
+    "@vitest/coverage-v8": "catalog:",
     "openapi-types": "catalog:",
     "tsup": "catalog:",
     "tsx": "catalog:",
-    "typescript": "catalog:"
+    "typescript": "catalog:",
+    "vite": "catalog:",
+    "vitest": "catalog:"
   }
 }
