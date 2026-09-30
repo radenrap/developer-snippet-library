@@ -1,0 +1,24 @@
+{
+  "name": "@snippets/shared",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Type, konstanta, dan skema zod yang dipakai bersama oleh API dan web.",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./validators": "./src/validators.ts"
+  },
+  "scripts": {
+    "lint": "biome check --config-path=../../biome.json .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "@snippets/config": "workspace:*",
+    "typescript": "catalog:"
+  }
+}

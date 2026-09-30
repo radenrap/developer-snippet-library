@@ -1,0 +1,4 @@
+{
+  "extends": "@snippets/config/typescript/base.json",
+  "include": ["src"]
+}
