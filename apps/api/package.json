@@ -1,0 +1,37 @@
+{
+  "name": "@snippets/api",
+  "version": "0.0.0",
+  "private": true,
+  "description": "REST API Fastify untuk snippet & regex library (port 3000).",
+  "type": "module",
+  "main": "./dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsup",
+    "start": "node dist/index.js",
+    "lint": "biome check --config-path=../../biome.json .",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@fastify/cors": "catalog:",
+    "@fastify/swagger": "catalog:",
+    "@fastify/swagger-ui": "catalog:",
+    "@fastify/type-provider-zod": "catalog:",
+    "@snippets/db": "workspace:*",
+    "@snippets/shared": "workspace:*",
+    "drizzle-orm": "catalog:",
+    "fastify": "catalog:",
+    "fastify-plugin": "catalog:",
+    "postgres": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "catalog:",
+    "@snippets/config": "workspace:*",
+    "@types/node": "catalog:",
+    "openapi-types": "catalog:",
+    "tsup": "catalog:",
+    "tsx": "catalog:",
+    "typescript": "catalog:"
+  }
+}
