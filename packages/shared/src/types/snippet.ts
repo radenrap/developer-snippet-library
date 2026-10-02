@@ -46,7 +46,7 @@ export const MAX_DESCRIPTION_LENGTH = 5000;
 export const MAX_TAGS_PER_SNIPPET = 10;
 export const MAX_QUERY_LENGTH = 200;
 
-export const DEFAULT_PAGE_SIZE = 20;
+export const DEFAULT_PAGE_SIZE = 9;
 export const MAX_PAGE_SIZE = 100;
 
 /** Dimensi default kolom pgvector (untuk fitur AI embedding berikutnya). */
