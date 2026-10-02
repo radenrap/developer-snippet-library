@@ -9,6 +9,7 @@ import {
   serializerCompiler,
   validatorCompiler,
 } from '@fastify/type-provider-zod';
+import type { Database } from '@snippets/db';
 import type { FastifyError } from 'fastify';
 import Fastify from 'fastify';
 import { env } from './env';
@@ -19,11 +20,21 @@ import { regexRoutes } from './routes/regex';
 import { snippetRoutes } from './routes/snippets';
 import { tagRoutes } from './routes/tags';
 
+/** Opsi pembangunan aplikasi; semua field opsional agar produksi tetap `buildApp()`. */
+export type BuildAppOptions = {
+  /**
+   * Override `fastify.db`. Test integrasi mengisinya dengan transaksi yang akan
+   * di-rollback; produksi membiarkannya kosong sehingga `dbPlugin` memakai
+   * singleton milik @snippets/db dan menutup pool-nya saat app ditutup.
+   */
+  db?: Database;
+};
+
 /**
  * Membangun instance Fastify tanpa memanggil `listen()`,
  * supaya bisa dipakai ulang di integration test.
  */
-export async function buildApp() {
+export async function buildApp(options: BuildAppOptions = {}) {
   const app = Fastify({
     logger: { level: env.logLevel },
     trustProxy: env.isProduction,
@@ -40,7 +51,7 @@ export async function buildApp() {
   });
 
   // Menyuntik `fastify.db` (Drizzle) ke seluruh route + menutup pool saat close.
-  await app.register(dbPlugin);
+  await app.register(dbPlugin, { db: options.db });
 
   // Auto-docs: OpenAPI 3 dibangun dari skema zod tiap route.
   await app.register(swagger, {
