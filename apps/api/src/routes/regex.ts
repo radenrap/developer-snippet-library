@@ -6,6 +6,28 @@ import { ok } from '../lib/respond';
 /** Batas jumlah match yang dikirim supaya payload tidak meledak. */
 const MAX_MATCHES = 100;
 
+/**
+ * Buang named group yang tidak ikut match.
+ *
+ * Pada alternation seperti `(?<a>x)|(?<b>y)`, JavaScript tetap menuliskan key
+ * untuk cabang yang tidak cocok dengan nilai `undefined`. Skema respons
+ * (`z.record(z.string(), z.string())`) menolak nilai itu, sehingga serializer
+ * gagal dan endpoint membalas 500 untuk input yang sebenarnya valid.
+ */
+function definedGroups(
+  groups: Record<string, string | undefined> | undefined,
+): Record<string, string> {
+  const result: Record<string, string> = {};
+
+  for (const [key, value] of Object.entries(groups ?? {})) {
+    if (value !== undefined) {
+      result[key] = value;
+    }
+  }
+
+  return result;
+}
+
 export const regexRoutes: FastifyPluginAsyncZod = async (fastify) => {
   fastify.post(
     '/regex/test',
@@ -49,7 +71,7 @@ export const regexRoutes: FastifyPluginAsyncZod = async (fastify) => {
         matches.push({
           index: match.index ?? 0,
           value: match[0] ?? '',
-          groups: match.groups ? { ...match.groups } : {},
+          groups: definedGroups(match.groups),
         });
 
         if (matches.length >= MAX_MATCHES) {

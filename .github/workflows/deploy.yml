@@ -1,0 +1,58 @@
+# ============================================================================
+# Deploy — migrasi database produksi (Neon) sebagai bagian dari CD.
+# ============================================================================
+# Render free tier TIDAK mendukung preDeployCommand, jadi migrasi skema tidak
+# bisa di-hook ke deploy Render. Workflow inilah yang menjalankannya.
+#
+# Karena render.yaml memakai `autoDeployTrigger: checksPass`, job `migrate` di
+# bawah menjadi salah satu check yang ditunggu Render. Urutannya jadi terjaga:
+#
+#   push ke main
+#     ├─ CI (lint/typecheck/build/test)   ─┐
+#     ├─ Deploy (migrate → Neon)          ─┤  semua check lolos
+#     └─ Render deploy API → /health OK → deploy Web
+#
+# Secret yang dibutuhkan (GitHub → Settings → Secrets and variables → Actions):
+#   DATABASE_URL : Neon DIRECT connection string (bukan -pooler). Driver
+#                  `postgres` memakai prepared statement yang tidak kompatibel
+#                  dengan PgBouncer mode transaksi.
+# ============================================================================
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: # bisa dipicu manual untuk menjalankan migrasi saja
+
+# Migrasi tidak boleh dibatalkan/ditumpang-tindihkan di tengah jalan.
+concurrency:
+  group: deploy-production
+  cancel-in-progress: false
+
+jobs:
+  migrate:
+    name: Migrate Neon database
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Idempoten: enable-vector (CREATE EXTENSION IF NOT EXISTS) lalu migrate.
+      # Aman dijalankan berulang; migrasi yang sudah diterapkan akan dilewati.
+      - name: Enable pgvector + run migrations
+        run: pnpm --filter @snippets/db db:deploy
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}

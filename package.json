@@ -27,6 +27,7 @@
     "db:down": "docker compose down",
     "db:generate": "turbo run db:generate",
     "db:migrate": "turbo run db:migrate",
+    "db:deploy": "pnpm --filter @snippets/db run db:deploy",
     "db:push": "turbo run db:push",
     "db:enable-vector": "docker compose exec postgres psql -U dev -d snippets_db -c \"CREATE EXTENSION IF NOT EXISTS vector;\"",
     "db:studio": "turbo run db:studio"

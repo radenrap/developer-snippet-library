@@ -44,13 +44,29 @@ declare module 'fastify' {
  * scoping transaksi per-request. Siklus hidup koneksi dimiliki plugin ini lewat
  * hook `onClose`, sehingga `app.close()` otomatis menutup pool.
  */
-export const dbPlugin = fp(
-  async (fastify: FastifyInstance) => {
-    fastify.decorate('db', getDb());
+export type DbPluginOptions = {
+  /**
+   * Instance Drizzle yang dipakai sebagai `fastify.db`.
+   *
+   * Bila kosong, plugin membuat singleton `getDb()` dan menutup pool-nya saat
+   * app ditutup. Bila diisi -- test integrasi menyuntik transaksi yang akan
+   * di-rollback -- kepemilikan koneksi tetap di pemanggil, jadi `app.close()`
+   * tidak boleh menutup pool global.
+   */
+  db?: Database;
+};
 
-    fastify.addHook('onClose', async () => {
-      await closeDb();
-    });
+export const dbPlugin = fp(
+  async (fastify: FastifyInstance, options: DbPluginOptions) => {
+    const injected = options.db;
+
+    fastify.decorate('db', injected ?? getDb());
+
+    if (!injected) {
+      fastify.addHook('onClose', async () => {
+        await closeDb();
+      });
+    }
   },
   { name: 'db', fastify: '5.x' },
 );

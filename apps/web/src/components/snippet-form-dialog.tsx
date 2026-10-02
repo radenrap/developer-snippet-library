@@ -4,7 +4,7 @@ import { KNOWN_LANGUAGES, MAX_TAGS_PER_SNIPPET } from '@snippets/shared';
 import { createSnippetSchema } from '@snippets/shared/validators';
 import { X } from 'lucide-react';
 import type { KeyboardEvent as ReactKeyboardEvent } from 'react';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -65,6 +65,8 @@ export function SnippetFormDialog({ open, onOpenChange, snippet = null }: Snippe
   const updateMutation = useUpdateSnippet();
   const { data: availableTags = [] } = useTags();
   const [tagInput, setTagInput] = useState('');
+  const [tagMenuOpen, setTagMenuOpen] = useState(false);
+  const tagBoxRef = useRef<HTMLDivElement | null>(null);
 
   const form = useForm<CreateSnippetInput>({
     resolver: zodResolver(createSnippetSchema),
@@ -85,29 +87,54 @@ export function SnippetFormDialog({ open, onOpenChange, snippet = null }: Snippe
       tags: snippet?.tags ?? [],
     });
     setTagInput('');
+    setTagMenuOpen(false);
   }, [form, open, snippet]);
 
   const selectedTags = form.watch('tags') ?? [];
+  const selectedLower = useMemo(
+    () => new Set(selectedTags.map((tag) => tag.toLowerCase())),
+    [selectedTags],
+  );
 
   const suggestions = useMemo(() => {
     const needle = tagInput.trim().toLowerCase();
 
     return availableTags
-      .filter((tag) => !selectedTags.includes(tag.name))
+      .filter((tag) => !selectedLower.has(tag.name.toLowerCase()))
       .filter((tag) => needle.length === 0 || tag.name.toLowerCase().includes(needle))
       .slice(0, 6);
-  }, [availableTags, selectedTags, tagInput]);
+  }, [availableTags, selectedLower, tagInput]);
 
-  function addTag(name: string) {
-    const clean = name.trim().replace(/^#/, '');
+  /** Samakan kapitalisasi dengan tag yang sudah ada agar tidak timbul duplikat case. */
+  function resolveTagName(raw: string): string {
+    const clean = raw.trim().replace(/^#/, '');
 
     if (clean.length === 0) {
+      return '';
+    }
+
+    const lower = clean.toLowerCase();
+    const known = availableTags.find((tag) => tag.name.toLowerCase() === lower);
+
+    if (known) {
+      return known.name;
+    }
+
+    const selected = selectedTags.find((tag) => tag.toLowerCase() === lower);
+
+    return selected ?? clean;
+  }
+
+  function addTag(raw: string) {
+    const name = resolveTagName(raw);
+
+    if (name.length === 0) {
       return;
     }
 
     const current = form.getValues('tags') ?? [];
 
-    if (current.includes(clean)) {
+    if (current.some((tag) => tag.toLowerCase() === name.toLowerCase())) {
       setTagInput('');
 
       return;
@@ -119,8 +146,9 @@ export function SnippetFormDialog({ open, onOpenChange, snippet = null }: Snippe
       return;
     }
 
-    form.setValue('tags', [...current, clean], { shouldDirty: true });
+    form.setValue('tags', [...current, name], { shouldDirty: true, shouldValidate: true });
     setTagInput('');
+    setTagMenuOpen(true);
   }
 
   function removeTag(name: string) {
@@ -128,15 +156,49 @@ export function SnippetFormDialog({ open, onOpenChange, snippet = null }: Snippe
 
     form.setValue(
       'tags',
-      current.filter((tag) => tag !== name),
-      { shouldDirty: true },
+      current.filter((tag) => tag.toLowerCase() !== name.toLowerCase()),
+      { shouldDirty: true, shouldValidate: true },
     );
   }
+
+  function handleTagBlur() {
+    // Tutup menu hanya bila fokus benar-benar keluar dari kotak tag. Klik saran
+    // tidak memindahkan fokus dari input, jadi menu tetap terbuka untuk menambah lagi.
+    window.setTimeout(() => {
+      if (!tagBoxRef.current?.contains(document.activeElement)) {
+        setTagMenuOpen(false);
+      }
+    }, 0);
+  }
+
+  const createTagLabel = tagInput.trim().replace(/^#/, '');
+  const showCreateItem =
+    createTagLabel.length > 0 &&
+    !selectedLower.has(createTagLabel.toLowerCase()) &&
+    !suggestions.some((tag) => tag.name.toLowerCase() === createTagLabel.toLowerCase());
 
   function handleTagKeyDown(event: ReactKeyboardEvent<HTMLInputElement>) {
     if (event.key === 'Backspace' && tagInput.length === 0 && selectedTags.length > 0) {
       event.preventDefault();
       removeTag(selectedTags[selectedTags.length - 1] ?? '');
+
+      return;
+    }
+
+    if (event.key === 'Escape') {
+      setTagMenuOpen(false);
+
+      return;
+    }
+
+    const hasItems = suggestions.length > 0 || showCreateItem;
+
+    // Koma = commit tag yang sedang diketik. Enter tanpa item juga di-commit
+    // (sekaligus mencegah submit form tersirat). Enter saat ada item dibiarkan
+    // ke cmdk agar saran yang disorot tetap bisa dipilih lewat keyboard.
+    if (event.key === ',' || (event.key === 'Enter' && !hasItems)) {
+      event.preventDefault();
+      addTag(tagInput);
     }
   }
 
@@ -161,9 +223,6 @@ export function SnippetFormDialog({ open, onOpenChange, snippet = null }: Snippe
   }
 
   const isPending = createMutation.isPending || updateMutation.isPending;
-  const createTagLabel = tagInput.trim();
-  const showCreateItem =
-    createTagLabel.length > 0 && !suggestions.some((tag) => tag.name === createTagLabel);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -218,60 +277,77 @@ export function SnippetFormDialog({ open, onOpenChange, snippet = null }: Snippe
                 )}
               />
 
-              <FormItem>
-                <FormLabel>Tag</FormLabel>
-                <div className="rounded-md border">
-                  {selectedTags.length > 0 ? (
-                    <div className="flex flex-wrap gap-1.5 border-b p-2">
-                      {selectedTags.map((tag) => (
-                        <Badge key={tag} variant="secondary" className="gap-1 pr-1">
-                          #{tag}
-                          <button
-                            type="button"
-                            aria-label={`Hapus tag ${tag}`}
-                            className="cursor-pointer rounded-sm opacity-60 hover:opacity-100"
-                            onClick={() => removeTag(tag)}
-                          >
-                            <X className="size-3" />
-                          </button>
-                        </Badge>
-                      ))}
-                    </div>
-                  ) : null}
+              <FormField
+                control={form.control}
+                name="tags"
+                render={() => (
+                  <FormItem>
+                    <FormLabel>Tag</FormLabel>
+                    <div ref={tagBoxRef} className="relative rounded-md border">
+                      {selectedTags.length > 0 ? (
+                        <div className="flex flex-wrap gap-1.5 border-b p-2">
+                          {selectedTags.map((tag) => (
+                            <Badge key={tag} variant="secondary" className="gap-1 pr-1">
+                              #{tag}
+                              <button
+                                type="button"
+                                aria-label={`Hapus tag ${tag}`}
+                                className="cursor-pointer rounded-sm opacity-60 hover:opacity-100"
+                                onClick={() => removeTag(tag)}
+                              >
+                                <X className="size-3" />
+                              </button>
+                            </Badge>
+                          ))}
+                        </div>
+                      ) : null}
 
-                  <Command shouldFilter={false}>
-                    <CommandInput
-                      value={tagInput}
-                      onValueChange={setTagInput}
-                      onKeyDown={handleTagKeyDown}
-                      placeholder="Ketik tag lalu pilih dari saran…"
-                      className="h-9"
-                    />
-                    <CommandList>
-                      <CommandEmpty>Tidak ada tag yang cocok.</CommandEmpty>
-                      <CommandGroup>
-                        {showCreateItem ? (
-                          <CommandItem
-                            value={`buat:${createTagLabel}`}
-                            onSelect={() => addTag(createTagLabel)}
-                          >
-                            Buat tag &quot;{createTagLabel}&quot;
-                          </CommandItem>
+                      <Command
+                        shouldFilter={false}
+                        className="overflow-visible bg-transparent [&_[data-slot=command-input-wrapper]]:border-b-0"
+                      >
+                        <CommandInput
+                          value={tagInput}
+                          onValueChange={(value) => {
+                            setTagInput(value);
+                            setTagMenuOpen(true);
+                          }}
+                          onFocus={() => setTagMenuOpen(true)}
+                          onBlur={handleTagBlur}
+                          onKeyDown={handleTagKeyDown}
+                          placeholder="Ketik tag lalu pilih dari saran…"
+                          className="h-9"
+                        />
+                        {tagMenuOpen ? (
+                          <CommandList className="absolute top-full left-0 z-50 mt-1 max-h-56 w-full rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
+                            <CommandEmpty>Tidak ada tag yang cocok.</CommandEmpty>
+                            <CommandGroup>
+                              {showCreateItem ? (
+                                <CommandItem
+                                  value={`buat:${createTagLabel}`}
+                                  onSelect={() => addTag(createTagLabel)}
+                                >
+                                  Buat tag &quot;{createTagLabel}&quot;
+                                </CommandItem>
+                              ) : null}
+                              {suggestions.map((tag) => (
+                                <CommandItem key={tag.id} value={tag.name} onSelect={addTag}>
+                                  #{tag.name}
+                                  <span className="ml-auto text-xs text-muted-foreground">
+                                    {tag.count}
+                                  </span>
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </CommandList>
                         ) : null}
-                        {suggestions.map((tag) => (
-                          <CommandItem key={tag.id} value={tag.name} onSelect={addTag}>
-                            #{tag.name}
-                            <span className="ml-auto text-xs text-muted-foreground">
-                              {tag.count}
-                            </span>
-                          </CommandItem>
-                        ))}
-                      </CommandGroup>
-                    </CommandList>
-                  </Command>
-                </div>
-                <FormDescription>Maksimal {MAX_TAGS_PER_SNIPPET} tag.</FormDescription>
-              </FormItem>
+                      </Command>
+                    </div>
+                    <FormDescription>Maksimal {MAX_TAGS_PER_SNIPPET} tag.</FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
             </div>
 
             <FormField

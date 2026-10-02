@@ -45,3 +45,4 @@ pgdata/
 
 # Documentation
 docs/
+*.code-workspace

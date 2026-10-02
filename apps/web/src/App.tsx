@@ -1,6 +1,7 @@
 import { Code2 } from 'lucide-react';
 import { Link, Route, Routes, useNavigate } from 'react-router';
 import { EmptyState } from '@/components/feedback';
+import { Footer } from '@/components/footer';
 import { HomePage } from '@/routes/home-page';
 import { SnippetDetailPage } from '@/routes/snippet-detail-page';
 
@@ -29,15 +30,15 @@ function ShortcutHint() {
   );
 }
 
-/** Kerangka aplikasi: header + router outlet. */
+/** Kerangka aplikasi: header + router outlet + footer. */
 export function App() {
   return (
-    <div className="min-h-screen bg-background">
+    <div className="flex min-h-screen flex-col bg-background">
       <header className="sticky top-0 z-10 border-b bg-background/85 backdrop-blur">
         <div className="mx-auto flex w-full max-w-6xl items-center gap-4 px-4 py-3">
           <Link to="/" className="flex items-center gap-2 font-semibold tracking-tight">
             <Code2 className="size-5 text-primary" />
-            Snippet Library
+            DevFlow
           </Link>
           <div className="ml-auto">
             <ShortcutHint />
@@ -45,13 +46,15 @@ export function App() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-6xl px-4 py-6">
+      <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6">
         <Routes>
           <Route path="/" element={<HomePage />} />
           <Route path="/snippet/:id" element={<SnippetDetailPage />} />
           <Route path="*" element={<NotFoundPage />} />
         </Routes>
       </main>
+
+      <Footer />
     </div>
   );
 }

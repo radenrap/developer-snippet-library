@@ -11,6 +11,8 @@
   "scripts": {
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
+    "db:enable-vector": "tsx src/enable-vector.ts",
+    "db:deploy": "tsx src/enable-vector.ts && drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx src/seed.ts",
     "db:studio": "drizzle-kit studio",

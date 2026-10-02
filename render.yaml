@@ -1,0 +1,103 @@
+# ============================================================================
+# Render Blueprint — Infrastructure as Code untuk Developer Snippet Library
+# ============================================================================
+# Cara pakai:
+#   1. Render Dashboard → "New +" → "Blueprint" → hubungkan repo GitHub ini.
+#   2. Render membaca file ini dan membuat 2 service:
+#        - snippet-api  (web service, runtime node)   → Fastify
+#        - snippet-web  (static site, runtime static) → React + Vite
+#   3. Saat pembuatan, Render meminta nilai untuk env ber-`sync: false`
+#      (DATABASE_URL, CORS_ORIGIN, VITE_API_URL). Isi sesuai lingkunganmu.
+#
+# CATATAN PENTING (free tier) — jangan diubah tanpa membaca ini:
+#   • JANGAN deklarasikan NODE_ENV di sini. Render menyuntikkannya HANYA saat
+#     runtime. Bila NODE_ENV=production ada saat build, `pnpm install` membuang
+#     devDependencies (tsup/turbo/vite hilang) dan build PASTI gagal.
+#   • PORT juga TIDAK di-set. Render menyuntikkan PORT (default 10000) dan
+#     apps/api/src/env.ts sudah memprioritaskan PORT, jadi app otomatis bind ke
+#     port yang dirutekan Render. (Blueprint tidak mendukung interpolasi $PORT.)
+#   • preDeployCommand hanya jalan di instance BERBAYAR, jadi migrasi DB TIDAK
+#     dijalankan di sini — melainkan oleh GitHub Actions (deploy.yml).
+#   • autoDeployTrigger: checksPass → Render baru deploy setelah SEMUA check
+#     GitHub Actions (CI + job migrasi) lolos. Ini menjaga urutan:
+#     migrate → deploy API → health check → deploy Web.
+#   • region diset `oregon`; samakan dengan region Neon agar latensi rendah.
+# ============================================================================
+
+services:
+  # --------------------------------------------------------------------------
+  # API — Fastify REST (web service, Node native runtime)
+  # --------------------------------------------------------------------------
+  - type: web
+    name: snippet-api
+    runtime: node
+    region: oregon
+    plan: free
+    branch: main
+    autoDeployTrigger: checksPass
+    healthCheckPath: /health
+    buildCommand: pnpm install --frozen-lockfile && pnpm turbo run build --filter=@snippets/api --ui=stream
+    startCommand: node apps/api/dist/index.js
+    buildFilter:
+      paths:
+        - apps/api/**/*
+        - packages/**/*
+        - pnpm-lock.yaml
+        - pnpm-workspace.yaml
+        - package.json
+        - turbo.json
+        - biome.json
+        - render.yaml
+      ignoredPaths:
+        - apps/api/tests/**/*
+        - "**/*.md"
+    envVars:
+      - key: NODE_VERSION
+        value: "22.12.0"
+      - key: API_HOST
+        value: "0.0.0.0"
+      - key: LOG_LEVEL
+        value: info
+      # Rahasia → diisi di dashboard saat Blueprint dibuat (tidak disimpan di repo).
+      - key: DATABASE_URL
+        sync: false # Neon DIRECT connection string (bukan -pooler)
+      - key: CORS_ORIGIN
+        sync: false # URL publik Web, mis. https://snippet-web.onrender.com
+
+  # --------------------------------------------------------------------------
+  # Web — React + Vite (static site)
+  # --------------------------------------------------------------------------
+  - type: web
+    name: snippet-web
+    runtime: static
+    branch: main
+    autoDeployTrigger: checksPass
+    buildCommand: pnpm install --frozen-lockfile && pnpm turbo run build --filter=@snippets/web --ui=stream
+    staticPublishPath: ./apps/web/dist
+    buildFilter:
+      paths:
+        - apps/web/**/*
+        - packages/**/*
+        - pnpm-lock.yaml
+        - pnpm-workspace.yaml
+        - package.json
+        - turbo.json
+        - biome.json
+        - render.yaml
+      ignoredPaths:
+        - "**/*.md"
+    routes:
+      # SPA fallback: deep link seperti /snippet/:id tetap dilayani index.html.
+      # Render tidak menerapkan rewrite bila ada file nyata di path tersebut,
+      # jadi /assets/*.js hasil build tetap aman.
+      - type: rewrite
+        source: /*
+        destination: /index.html
+    envVars:
+      - key: NODE_VERSION
+        value: "22.12.0"
+      # Build-time var untuk Vite. WAJIB URL absolut (proxy Vite tidak ada di
+      # static hosting), dan harus diakhiri /api karena klien web memakai
+      # `${VITE_API_URL}${path}` dengan path seperti `/snippets`.
+      - key: VITE_API_URL
+        sync: false # mis. https://snippet-api.onrender.com/api
