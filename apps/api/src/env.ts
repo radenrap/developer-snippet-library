@@ -3,7 +3,13 @@ import { z } from 'zod';
 const envSchema = z.object({
   NODE_ENV: z.enum(['development', 'test', 'production']).default('development'),
   API_HOST: z.string().min(1).default('0.0.0.0'),
-  API_PORT: z.coerce.number().int().min(1).max(65_535).default(3000),
+  /**
+   * Port bind server. PaaS (mis. Render) menyuntikkan `PORT` dan merutekan
+   * trafik ke sana, jadi `PORT` ikut dihormati. Urutan prioritas:
+   * `API_PORT` (override eksplisit) > `PORT` (platform) > 3000 (default).
+   */
+  API_PORT: z.coerce.number().int().min(1).max(65_535).optional(),
+  PORT: z.coerce.number().int().min(1).max(65_535).optional(),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace', 'silent']).default('info'),
   /** Boleh berisi beberapa origin dipisahkan koma. */
   CORS_ORIGIN: z.string().min(1).default('http://localhost:5173'),
@@ -30,7 +36,7 @@ export const env = {
   nodeEnv: raw.NODE_ENV,
   isProduction: raw.NODE_ENV === 'production',
   apiHost: raw.API_HOST,
-  apiPort: raw.API_PORT,
+  apiPort: raw.API_PORT ?? raw.PORT ?? 3000,
   logLevel: raw.LOG_LEVEL,
   defaultAuthorId: raw.API_DEFAULT_AUTHOR_ID,
   corsOrigins: raw.CORS_ORIGIN.split(',')
