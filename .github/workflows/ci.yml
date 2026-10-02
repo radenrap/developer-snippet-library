@@ -1,0 +1,95 @@
+# ============================================================================
+# CI — quality gate untuk setiap push ke `main` dan setiap Pull Request.
+# ============================================================================
+# Menjalankan lint, typecheck, build, dan test (unit + integration). Job `test`
+# memakai service container PostgreSQL ber-pgvector agar integration test benar-
+# benar berjalan (bukan di-skip): skema dimigrasikan lebih dulu, lalu test
+# membungkus tiap kasus dalam transaksi yang di-rollback (lihat db-integration).
+#
+# Check dari workflow ini (bersama job `migrate` di deploy.yml) dipakai Render
+# sebagai gate `autoDeployTrigger: checksPass` — deploy hanya jalan bila lolos.
+# ============================================================================
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality:
+    name: Lint · Typecheck · Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # Versi pnpm dibaca dari field `packageManager` di package.json.
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # turbo.json memakai "ui": "tui" yang butuh TTY; runner CI tidak punya TTY,
+      # jadi dipaksa --ui=stream agar tidak hang.
+      - name: Lint · Typecheck · Build
+        run: pnpm turbo run lint typecheck build --ui=stream
+
+  test:
+    name: Test (unit + integration)
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: dev
+          POSTGRES_PASSWORD: dev
+          POSTGRES_DB: snippets_db
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dev -d snippets_db"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://dev:dev@localhost:5432/snippets_db
+      POSTGRES_HOST: localhost
+      POSTGRES_PORT: "5432"
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: snippets_db
+      NODE_ENV: test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # enable-vector (CREATE EXTENSION) + drizzle-kit migrate ke DB service.
+      - name: Enable pgvector + migrate
+        run: pnpm --filter @snippets/db db:deploy
+
+      - name: Run tests
+        run: pnpm turbo run test --ui=stream
